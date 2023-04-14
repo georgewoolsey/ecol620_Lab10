@@ -1,0 +1,244 @@
+---
+title: "Lab 10 - Landsat Imagery"
+subtitle: "ECOL 620 - Applications in Landscape Ecology"
+author: "George Woolsey"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    # code_folding: hide
+editor_options: 
+  chunk_output_type: console
+knit: (function(inputFile, encoding){ 
+    out_dir <- '../';
+    rmarkdown::render(inputFile, encoding = encoding, output_file=file.path(dirname(inputFile), out_dir, 'index.html'));
+    file.copy(from = "..//index.html", to = '..///data//lab10_george_woolsey.html', overwrite = TRUE)
+  })
+---
+
+# Rules
+
+1. Using the provided R Markdown template, answer all questions and show your R code where necessary. Note, some questions are just plain text written answers.
+
+2. Complete your assignment using the R markdown file and submit individual assignments to Canvas. Knit your script and submit an .html file on Canvas. Please use  the following naming convention: lab5_firstname_lastname.html (ex. lab7_kyle_horton.html).  Note, we will not grade labs in any other format.
+
+# Objective
+
+In this lab, we explore the use of Landsat 8 imagery to calculate true color images, false color images, and NDVI. We will first work with a small dataset, prepared by [Earth Lab](https://www.earthdatascience.org/), exploring the impacts of the 2016 Cold Stone fire. The Cold Stone fire was first reported on July 9, 2016 approximately two miles northeast of Nederland, Colorado. The fire was extinguished on July 14,2016, but not before burning 528 acres.
+
+For your assignment, you will explore recent Landsat 8 data examining the pre-fire (October 2019) and post-fire (October 2020) periods surrounding the Cameron Peak fire of 2020. These data were downloaded from [Earth Explorer](https://earthexplorer.usgs.gov) at WRS row 32 and WRS path 34 (e.g., northern Colorado). You can find a KML file describing Landsat WRS rows and paths here: <https://www.usgs.gov/media/files/landsat-wrs-2-scene-boundaries-kml-file>.
+
+---
+
+# Setup
+
+```{r setup, include=FALSE, warning=F, message=F}
+# knit options
+knitr::opts_chunk$set(
+  echo = TRUE
+  , warning = FALSE
+  , message = FALSE
+  # , results='hide'
+  , fig.width = 10
+  , fig.height = 7
+)
+```
+
+```{r pkg-ld}
+# bread-and-butter
+library(tidyverse)
+library(lubridate)
+library(viridis)
+library(scales)
+library(latex2exp)
+# visualization
+library(kableExtra)
+library(cowplot)
+library(ggtext) # color text on ggplot
+# spatial analysis
+library(terra)
+library(sf)
+library(stars)
+library(starsExtra)
+# set seed
+set.seed(11)
+```
+
+---
+
+# Data Preparation
+
+Data can be downloaded from this [dropbox](https://www.dropbox.com/sh/dfqkohgr9oh9b87/AABw0t_85fQGGu9WjHyF_QkDa?dl=0)
+
+# Question 1
+
+Examine the files in the Cameron Peak “landsat” folder. In each folder, you’ll notice there are seven “.tif” files. Please describe the naming convention of the files. See the following for reference: <https://on.doi.gov/3d3D8wx>. (4 pts)
+
+```{r flist, results='hide'}
+# landsat folder
+f_list <- list.dirs("../data/cameron_peak/landsat/", recursive = F) |> 
+  purrr::map(list.files)
+
+paste0(f_list[[1]][1],", ..., ", f_list[[1]][length(f_list[[1]])])
+```
+
+The **`r length(f_list[[1]])`** files included in the `landsat` folder include **`r paste0(f_list[[1]][1],", ..., ", f_list[[1]][length(f_list[[1]])])`**. The naming convention is xxxxxxxxxxxxxxxxxxxx
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Question 2
+
+Describe the resolution, sampling frequency, and surface reflectance bands collected by Landsat 8. (5 pts)
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+see RS class
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Question 3
+
+What is a World Reference System (WRS) row and WRS path? (4 pts)
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+
+# Question 4
+
+Generate a pre- and post-fire natural color image using the Landsat tiles within the “landsat” folder. (See “Q4_figure.png”) (10 pts)
+
+```{r ld-dta, fig.show='hide', results='hide'}
+# date list
+img_date_list <- 1:length(f_list) |>
+  purrr::map(function(x){
+    f_list[[x]][1] |> 
+      toupper() |> 
+      stringr::str_remove(".TIF") |> 
+      stringr::word(4,sep = "_")
+  }) |> 
+  unlist() |> 
+  lubridate::as_date()
+# load data
+landsat_rast_list <- 1:length(list.dirs("../data/cameron_peak/landsat/", recursive = F)) |> 
+  purrr::map(function(x){
+    # paths
+    pth <- list.dirs("../data/cameron_peak/landsat/", recursive = F)[x]
+    fls <- list.files(pth)
+    rstr <- fls |> 
+      purrr::map(function(f){terra::rast(paste0(pth,"/",f))}) |> 
+        setNames(
+          fls |> 
+            toupper() |> 
+            stringr::str_remove(".TIF") |> 
+            stringr::word(-1,sep = "_") |> 
+            tolower()
+        ) |> 
+        terra::rast()
+    return(rstr)
+  })
+# plot # true color
+landsat_rast_list[[1]] |> 
+  terra::aggregate(fact = 6, fun = "mean", na.rm = T) |> 
+  terra::plotRGB(r = 4, g = 3, b = 2, stretch = "hist", colNA = "transparent")
+# plot # false color
+landsat_rast_list[[2]] |> 
+  terra::aggregate(fact = 6, fun = "mean", na.rm = T) |> 
+  terra::plotRGB(r = 5, g = 4, b = 3, stretch = "hist", colNA = "transparent")
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
+
+## Plot RGB Landsat Image
+
+```{r plt-rgb, results='hide', fig.width=12,fig.height=6}
+# function to plot rgb
+plt_landsat_rgb <- function(rast_list_pos) {
+  # convert to stars
+  landsat_img_st <- landsat_rast_list[[rast_list_pos]] |> 
+    terra::subset(subset = c("b2", "b3", "b4")) |> 
+    terra::aggregate(fact = 5, fun = "mean", na.rm = T) |> 
+    terra::project("epsg:4326") |> 
+    stars::st_as_stars()
+  gc()
+  # convert to rgb
+  landsat_img_rgb <- stars::st_rgb(
+    landsat_img_st[,,,3:1]
+    , dimension = 3
+    , use_alpha = FALSE
+    , stretch = "histogram"
+    # , probs = c(0.005, 0.995)
+    # , stretch = "percent"
+  )
+  # ggplot
+  plt_rgb <- ggplot() +
+    stars::geom_stars(data = landsat_img_rgb[]) +
+    scale_fill_identity(na.value = "transparent") + # !!! don't take this out or RGB plot will kill your computer
+    scale_x_continuous(expand = c(0, 0)) +
+    scale_y_continuous(expand = c(0, 0)) +
+    labs(
+      x = "Longitude"
+      , y = "Latitude"
+      , title = paste0(
+        "Landsat Image Date: "
+        , img_date_list[rast_list_pos]
+      )
+      , subtitle = "northern Colorado, USA (WRS row 32, WRS path 34)"
+    ) +
+    theme_light() +
+    theme(
+      legend.position = "none"
+      , axis.title = element_text(size = 8)
+      , axis.text = element_text(size=7)
+      , panel.grid = element_blank()
+      , plot.title = element_text(size = 10, hjust = 0.5, face="bold")
+      , plot.subtitle = element_text(size = 8, hjust = 0.5)
+    )
+  return(plt_rgb)
+}
+# map function
+plt_list <- 1:length(landsat_rast_list) |> 
+  purrr::map(plt_landsat_rgb)
+# combine
+cowplot::plot_grid(
+  plotlist = plt_list
+  , nrow = 1
+)
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
+
+
+# Question 5
+
+Generate a three-panel plot showing a false color image (bands 7-5-4) of the pre-fire, post-fire, and severity raster (“CameronPeak_SBS_final.tif”) cropped to the Cameron Peak area. Hint, crop to the following extent: extent(400000, 500000, 4445400, 4545000). (See “Q5_figure.png”) (10 pts)
+
+```{r}
+
+```
+
+
+# Question 6
+
+Generate an NDVI surface for the post-fire (October 6th, 2020) period cropped to the Fort Collins area. Hint, crop to the following extent: extent(482511.8, 509752.3, 4482326, 4498192). ). (See “Q6_figure.png”) (10 pts)
+
+```{r}
+
+```
+
+
+# Question 7
+
+From the previous plot, which areas (think cover types) show the lowest NDVI values and which show the highest? (5 pts)
+
+```{r}
+
+```
+
+<span style="color: teal;">
+asdf
+</span>

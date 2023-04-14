@@ -1,0 +1,58 @@
+---
+title: "Lab 10 - Landsat Imagery"
+author: "ECO620  - Applications in Landscape Ecology"
+date: "Spring 2023"
+output: html_document
+---
+---
+title: "Lab 7 - Space Use and Resource Selection"
+subtitle: "ECOL 620 - Applications in Landscape Ecology"
+author: "First Last"
+date: "MM/DD/YYYY"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Rules
+
+1. Using the provided R Markdown template, answer all questions and show your R code where necessary. Note, some questions are just plain text written answers.
+
+2. Complete your assignment using the R markdown file and submit individual assignments to Canvas. Knit your script and submit an .html file on Canvas. Please use  the following naming convention: lab5_firstname_lastname.html (ex. lab7_kyle_horton.html).  Note, we will not grade labs in any other format.
+
+In this lab, we explore the use of Landsat 8 imagery to calculate true color images, false color images, and NDVI. We will first work with a small dataset, prepared by [Earth Lab](https://www.earthdatascience.org/), exploring the impacts of the 2016 Cold Stone fire. The Cold Stone fire was first reported on July 9, 2016 approximately two miles northeast of Nederland, Colorado. The fire was extinguished on July 14,2016, but not before burning 528 acres.
+
+For your assignment, you will explore recent Landsat 8 data examining the pre-fire (October 2019) and post-fire (October 2020) periods surrounding the Cameron Peak fire of 2020. These data were downloaded from [Earth Explorer](https://earthexplorer.usgs.gov) at WRS row 32 and WRS path 34 (e.g., northern Colorado). You can find a KML file describing Landsat WRS rows and paths here: <https://www.usgs.gov/media/files/landsat-wrs-2-scene-boundaries-kml-file>.
+
+#################################################################################
+
+
+### Question 1
+
+Examine the files in the Cameron Peak “landsat” folder. In each folder, you’ll notice there are seven “.tif” files. Please describe the naming convention of the files. See the following for reference: <https://on.doi.gov/3d3D8wx>. (4 pts)
+
+### Question 2
+
+Describe the resolution, sampling frequency, and surface reflectance bands collected by Landsat 8. (5 pts)
+
+### Question 3
+
+What is a World Reference System (WRS) row and WRS path? (4 pts)
+
+### Question 4
+
+Generate a pre- and post-fire natural color image using the Landsat tiles within the “landsat” folder. (See “Q4_figure.png”) (10 pts)
+
+### Question 5
+
+Generate a three-panel plot showing a false color image (bands 7-5-4) of the pre-fire, post-fire, and severity raster (“CameronPeak_SBS_final.tif”) cropped to the Cameron Peak area. Hint, crop to the following extent: extent(400000, 500000, 4445400, 4545000). (See “Q5_figure.png”) (10 pts)
+
+### Question 6
+
+Generate an NDVI surface for the post-fire (October 6th, 2020) period cropped to the Fort Collins area. Hint, crop to the following extent: extent(482511.8, 509752.3, 4482326, 4498192). ). (See “Q6_figure.png”) (10 pts)
+
+### Question 7
+
+From the previous plot, which areas (think cover types) show the lowest NDVI values and which show the highest? (5 pts)

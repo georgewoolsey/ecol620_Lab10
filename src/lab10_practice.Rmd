@@ -1,0 +1,299 @@
+---
+title: "Lab 10 - Landsat Imagery"
+author: "ECO620  - Applications in Landscape Ecology"
+date: "Spring 2023"
+output: 
+  html_document:
+    toc: true
+    theme: united 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 10, fig.align='center', 
+                      message = FALSE, 
+                      warning = FALSE,
+                      fig.pos = "H")
+```
+
+## Environment set up
+
+Download lab files from [this folder](https://www.dropbox.com/sh/dfqkohgr9oh9b87/AABw0t_85fQGGu9WjHyF_QkDa?dl=0).
+
+For more information about regular expressions, look here: <https://en.wikipedia.org/wiki/Regular_expression>
+
+It is a tool frequently used to select files with names that match a certain pattern of interest (though it does an infinite number of other things).
+
+```{r}
+
+# Load spatial packages
+library(raster)
+library(rgdal)
+library(rgeos)
+#library(RStoolbox)
+library(ggplot2)
+library(scales)
+library(cowplot)
+
+# Set up path to directory where lab files are stored:
+dir_files = "./data_for_lab10/coldstone"
+
+# Set up path to directories with post and pre fire files:
+pre_fire_dir = paste(dir_files, "LC80340322016189-SC20170128091153", sep="/")
+post_fire_dir = paste(dir_files, "LC80340322016205-SC20170127160728", sep="/")
+
+# List all the band files in pre and post fire directories using regular 
+# expressions to select band files:
+pre_band_files <- list.files(pre_fire_dir,
+                                pattern = glob2rx("*band*.tif$"),
+                                full.names = TRUE) 
+post_band_files <- list.files(post_fire_dir,
+                                pattern = glob2rx("*band*.tif$"),
+                                full.names = TRUE)
+
+
+```
+
+# Inspecting a band file (example)
+
+```{r, fig.width=5}
+
+# Let`s load the second file in the pre-fire list and see what is in it:
+pre_band2 <- raster(pre_band_files[2])
+
+plot(pre_band2, main = "Landsat 8 cropped band 2\nCold Springs fire scar",
+     col = gray(0:100 / 100))
+
+```
+
+# What are all the bands? How to load them?
+
+| Band                         | Wavelength range (nanometers) | Spatial Resolution (m) | Spectral Width (nm) |
+|------------------------------|-------------------------------|------------------------|---------------------|
+| Band 1 - Coastal aerosol     | 430 - 450                     | 30                     | 2.0                 |
+| Band 2 - Blue                | 450 - 510                     | 30                     | 6.0                 |
+| Band 3 - Green               | 530 - 590                     | 30                     | 6.0                 |
+| Band 4 - Red                 | 640 - 670                     | 30                     | 0.03                |
+| Band 5 - Near Infrared (NIR) | 850 - 880                     | 30                     | 3.0                 |
+| Band 6 - SWIR 1              | 1570 - 1650                   | 30                     | 8.0                 |
+| Band 7 - SWIR 2              | 2110 - 2290                   | 30                     | 18                  |
+| Band 8 - Panchromatic        | 500 - 680                     | 15                     | 18                  |
+| Band 9 - Cirrus              | 1360 - 1380                   | 30                     | 2.0                 |
+
+### Creating a stack of all band files
+
+```{r}
+
+# Stack the data (check the class of the object created and notice what the stack function did):
+pre_bands <- stack(pre_band_files)
+post_bands <- stack(post_band_files)
+
+# view stack attributes
+pre_bands
+
+```
+
+
+```{r}
+
+# Get list of each layer name
+names(pre_bands)
+
+# Remove the filename from each band name for pretty plotting:
+names(pre_bands) <- gsub(pattern = "LC80340322016189LGN00_sr_", replacement = "", names(pre_bands))
+names(post_bands) <- gsub(pattern = "LC80340322016205LGN00_sr_", replacement = "", names(post_bands))
+
+# Check the result:
+names(pre_bands)
+
+```
+
+### Plot ugly panel of all bands
+
+```{r, fig.width = 6, fig.height = 8}
+
+plot(pre_bands,
+     col = gray(20:100 / 100),
+     nr = 4, nc = 2)
+
+```
+
+# Creating RGB composite plot
+
+```{r}
+
+# Subset red, green, and blue color bands:
+pre_rgb = raster::subset(pre_bands, c(2, 3, 4)) 
+
+# Rescale the values to have min = 0 and max = 255 (256 color scale):
+pre_rgb_scaled <- stretch(x=pre_rgb, minv=0, maxv=255)
+
+# Make it ggplot friendly:
+pre_rgb_scaled_df = as.data.frame(pre_rgb_scaled, xy = T)
+
+pre_rgb_plot_coldstone = ggplot()+
+  geom_raster(data=pre_rgb_scaled_df, aes(x=x, y=y, 
+                                          fill=rgb(blue = band2_crop, 
+                                                   green = band3_crop, 
+                                                   red = band4_crop, 
+                                                   maxColorValue = 255)))+ 
+  coord_equal(xlim = range(pre_rgb_scaled_df$x), ylim = range(pre_rgb_scaled_df$y))+ 
+  theme_bw(base_size = 14) + scale_fill_identity()+
+  scale_x_continuous(breaks=range(pre_rgb_scaled_df$x)*c(1.001, 0.999), 
+                     labels=label_number(accuracy = 1), 
+                     expand = c(0,0))+
+  scale_y_continuous(breaks=range(pre_rgb_scaled_df$y)*c(1.001, 0.999), 
+                     labels=label_number(accuracy = 1), 
+                     expand = c(0,0))+
+  labs(title = "Cold Stone - July 7th, 2016",
+       subtitle = "Pre-fire",
+       x = "Easting (meters)", y = "Northing (meters)")+
+  theme(axis.line=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        plot.background=element_blank())
+
+# Subset red, green, and blue color bands:
+post_rgb = raster::subset(post_bands, c(2, 3, 4)) 
+
+# Rescale the values to have min = 0 and max = 255 (256 color scale):
+post_rgb_scaled <- stretch(x=post_rgb, minv=0, maxv=255)
+
+# Make it ggplot friendly:
+post_rgb_scaled_df = as.data.frame(post_rgb_scaled, xy = T)
+
+post_rgb_plot_coldstone = ggplot()+
+  geom_raster(data=post_rgb_scaled_df, aes(x=x, y=y, 
+                                          fill=rgb(blue = band2_crop, 
+                                                   green = band3_crop, 
+                                                   red = band4_crop, 
+                                                   maxColorValue = 255)))+ 
+  coord_equal(xlim = range(post_rgb_scaled_df$x), ylim = range(post_rgb_scaled_df$y))+ 
+  theme_bw(base_size = 14) + scale_fill_identity()+
+  scale_x_continuous(breaks=range(post_rgb_scaled_df$x)*c(1.001, 0.999), 
+                     labels=label_number(accuracy = 1), 
+                     expand = c(0,0))+
+  scale_y_continuous(breaks=range(post_rgb_scaled_df$y)*c(1.001, 0.999), 
+                     labels=label_number(accuracy = 1), 
+                     expand = c(0,0))+
+  labs(title = "Cold Stone - July 7th, 2016",
+       subtitle = "Post-fire",
+       x = "Easting (meters)", y = "Northing (meters)")+
+  theme(axis.line=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        plot.background=element_blank())
+
+coldstone_grid = plot_grid(pre_rgb_plot_coldstone, post_rgb_plot_coldstone, 
+                           nrow = 1, ncol = 2)
+
+coldstone_grid
+
+```
+
+# Creating a false color composite
+
+```{r}
+
+# Subset red, green, and blue color bands:
+pre_false = raster::subset(pre_bands, c(5, 6, 7)) 
+
+# Rescale the values to have min = 0 and max = 255 (256 color scale):
+pre_false_scaled <- stretch(x=pre_false, minv=0, maxv=255)
+
+# Make it ggplot friendly:
+pre_false_scaled_df = as.data.frame(pre_false_scaled, xy = T)
+
+pre_false_plot_coldstone = ggplot()+
+  geom_raster(data=pre_false_scaled_df, aes(x=x, y=y, 
+                                          fill=rgb(blue = band5_crop, 
+                                                   green = band6_crop, 
+                                                   red = band7_crop, 
+                                                   maxColorValue = 255)))+ 
+  coord_equal(xlim = range(pre_false_scaled_df$x), ylim = range(pre_false_scaled_df$y))+ 
+  theme_bw(base_size = 14) + scale_fill_identity()+
+  scale_x_continuous(breaks=range(pre_false_scaled_df$x)*c(1.001, 0.999), 
+                     labels=label_number(accuracy = 1), 
+                     expand = c(0,0))+
+  scale_y_continuous(breaks=range(pre_false_scaled_df$y)*c(1.001, 0.999), 
+                     labels=label_number(accuracy = 1), 
+                     expand = c(0,0))+
+  labs(title = "Cold Stone - July 7th, 2016",
+       subtitle = "Pre-fire (bands: 567)",
+       x = "Easting (meters)", y = "Northing (meters)")+
+  theme(axis.line=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        plot.background=element_blank())
+
+# Subset red, green, and blue color bands:
+post_false = raster::subset(post_bands, c(5, 6, 7)) 
+
+# Rescale the values to have min = 0 and max = 255 (256 color scale):
+post_false_scaled <- stretch(x=post_false, minv=0, maxv=255)
+
+# Make it ggplot friendly:
+post_false_scaled_df = as.data.frame(post_false_scaled, xy = T)
+
+post_false_plot_coldstone = ggplot()+
+  geom_raster(data=post_false_scaled_df, aes(x=x, y=y, 
+                                          fill=rgb(blue = band5_crop, 
+                                                   green = band6_crop, 
+                                                   red = band7_crop, 
+                                                   maxColorValue = 255)))+ 
+  coord_equal(xlim = range(post_false_scaled_df$x), ylim = range(post_false_scaled_df$y))+ 
+  theme_bw(base_size = 14) + scale_fill_identity()+
+  scale_x_continuous(breaks=range(post_false_scaled_df$x)*c(1.001, 0.999), 
+                     labels=label_number(accuracy = 1), 
+                     expand = c(0,0))+
+  scale_y_continuous(breaks=range(post_false_scaled_df$y)*c(1.001, 0.999), 
+                     labels=label_number(accuracy = 1), 
+                     expand = c(0,0))+
+  labs(title = "Cold Stone - July 7th, 2016",
+      subtitle = "Post-fire (bands: 567)",
+       x = "Easting (meters)", y = "Northing (meters)")+
+  theme(axis.line=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        plot.background=element_blank())
+
+coldstone_grid = plot_grid(pre_false_plot_coldstone, post_false_plot_coldstone, 
+                           nrow = 1, ncol = 2)
+
+# Witness the magic of bands:
+coldstone_grid
+
+```
+
+# Calculating NDVI
+
+```{r, out.width="70%"}
+
+red = post_bands[[4]]
+infrared = post_bands[[5]]
+
+# Perform raster algebra to calculate a raster of NDVI values
+ndvi = (infrared - red) / (infrared + red)
+
+# Plot the NDVI as a false-color image
+ndvi_df = as.data.frame(ndvi, xy=T)
+
+ggplot()+
+  geom_raster(data=ndvi_df, aes(x=x, y=y, fill=layer))+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme_bw(base_size = 14)+ coord_equal()+
+  scale_fill_gradient2()+
+  scale_x_continuous(breaks=range(ndvi_df$x)*c(1.001, 0.999), 
+                     labels=label_number(accuracy = 1), 
+                     expand = c(0,0))+
+  scale_y_continuous(breaks=range(ndvi_df$y)*c(1.001, 0.999), 
+                     labels=label_number(accuracy = 1), 
+                     expand = c(0,0))+
+  labs(title = "Cold Stone - July 7th, 2016",
+       subtitle = "Post-fire NDVI",
+       x = "Easting (meters)", y = "Northing (meters)",
+       fill = "NDVI")+
+  theme(axis.line=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        plot.background=element_blank())
+```
