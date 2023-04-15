@@ -47,7 +47,7 @@ Generate a pre- and post-fire natural color image using the Landsat tiles within
 
 ### Question 5
 
-Generate a three-panel plot showing a false color image (bands 7-5-4) of the pre-fire, post-fire, and severity raster (“CameronPeak_SBS_final.tif”) cropped to the Cameron Peak area. Hint, crop to the following extent: extent(400000, 500000, 4445400, 4545000). (See “Q5_figure.png”) (10 pts)
+Generate a three-panel plot showing a false color image (bands 7-6-4) of the pre-fire, post-fire, and severity raster (“CameronPeak_SBS_final.tif”) cropped to the Cameron Peak area. Hint, crop to the following extent: extent(400000, 500000, 4445400, 4545000). (See “Q5_figure.png”) (10 pts)
 
 ### Question 6
 
