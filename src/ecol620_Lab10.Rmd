@@ -324,23 +324,78 @@ cowplot::plot_grid(
 )
 ```
 
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
+
+
 # Question 6
 
 Generate an NDVI surface for the post-fire (October 6th, 2020) period cropped to the Fort Collins area. Hint, crop to the following extent: extent(482511.8, 509752.3, 4482326, 4498192). ). (See “Q6_figure.png”) (10 pts)
 
 
-```{r}
+```{r plt-ndvi}
+# extent
+crp_ext_temp <- c(482511.8, 509752.3, 4482326, 4498192)
+# pull red and infrared bands
+red_temp <- landsat_rast_list[[2]] |> 
+  terra::subset(subset = c("b4")) |> 
+  terra::crop(crp_ext_temp)
+infrared_temp <- landsat_rast_list[[2]] |> 
+  terra::subset(subset = c("b5")) |> 
+  terra::crop(crp_ext_temp)
+# calculate ndvi
+ndvi_rast <- ((infrared_temp - red_temp) / (infrared_temp + red_temp)) |> 
+  terra::aggregate(fact = 2, fun = "mean", na.rm = T) |> 
+  terra::project("epsg:4326")
+# plot
+ndvi_rast |> 
+  as.data.frame(xy = T) |> 
+  dplyr::rename(ndvi=3) |> 
+  ggplot() + 
+    geom_raster(mapping=aes(x=x,y=y,fill=ndvi)) +
+    scale_fill_distiller(
+      type = "seq"
+      , palette = "YlGn"
+      , direction = 1
+      # , limits = c(-1,1)
+      , na.value = "transparent"
+    ) +
+    scale_x_continuous(expand = c(0, 0)) +
+    scale_y_continuous(expand = c(0, 0)) +
+    labs(
+      x = "Longitude"
+      , y = "Latitude"
+      , fill = "NDVI"
+      , title = paste0(
+          "Landsat Image Date: "
+          , img_date_list[2]
+        )
+      , subtitle = "Fort Collins, CO Area NDVI"
+    ) +
+    theme_light() +
+    theme(
+      legend.position = c(0.05,0.15)
+      , legend.text = element_text(size = 8)
+      , legend.title = element_text(size = 8)
+      , axis.title = element_text(size = 8)
+      , axis.text = element_text(size=7)
+      , panel.grid = element_blank()
+      , plot.title = element_text(size = 10, hjust = 0.5, face="bold")
+      , plot.subtitle = element_text(size = 8, hjust = 0.5)
+    )
 
 ```
 
+```{r, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
+remove(list = ls()[grep("_temp",ls())])
+gc()
+```
 
 # Question 7
 
 From the previous plot, which areas (think cover types) show the lowest NDVI values and which show the highest? (5 pts)
-
-```{r}
-
-```
 
 <span style="color: teal;">
 asdf
