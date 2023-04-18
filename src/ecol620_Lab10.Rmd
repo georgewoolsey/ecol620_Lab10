@@ -79,28 +79,67 @@ Examine the files in the Cameron Peak “landsat” folder. In each folder, you�
 # landsat folder
 f_list <- list.dirs("../data/cameron_peak/landsat/", recursive = F) |> 
   purrr::map(list.files)
-
-paste0(f_list[[1]][1],", ..., ", f_list[[1]][length(f_list[[1]])])
 ```
 
-The **`r length(f_list[[1]])`** files included in the `landsat` folder include **`r paste0(f_list[[1]][1],", ..., ", f_list[[1]][length(f_list[[1]])])`**. The naming convention is xxxxxxxxxxxxxxxxxxxx
+<span style="color: teal;">
+The **`r length(f_list[[1]])`** files included in the `landsat` folder include **`r paste0(f_list[[1]][1],", ..., ", f_list[[1]][length(f_list[[1]])])`**. The Landsat product identifier (e.g. `r f_list[[1]][1]`) is composed of the Landsat Collection processing levels, processing date, collection number, and collection tier category. The product identifier follows the convention:
+</span>
+ 
+*LXSS_LLLL_PPPRRR_YYYYMMDD_yyyymmdd_CC_TX*
 
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Where:
+
+* L = Landsat
+* X = Sensor (“C”=OLI/TIRS combined, “O”=OLI-only, “T”=TIRS-only, “E”=ETM+, “T”=“TM, “M”=MSS). Where, Operational Land Image (OLI) and Thermal Infrared Sensor (TIRS).
+* SS = Satellite (”07”=Landsat 7, “08”=Landsat 8)
+* LLL = Processing correction level (L1TP/L1GT/L1GS)
+* PPP = WRS path
+* RRR = WRS row
+* YYYYMMDD = Acquisition year, month, day
+* yyyymmdd - Processing year, month, day
+* CC = Collection number (01, 02, …)
+* TX = Collection category (“RT”=Real-Time, “T1”=Tier 1, “T2”=Tier 2)
+
+<span style="color: teal;">
+Therefore, the image that was used above "LC08_L2SP_034032_20191004_20200825_02_T1_SR_B1" means: Landsat 8; OLI/TIRS combined; processing correction level L2SP; WRS path 034; WRS row 032; acquired October 04, 2019; processed August 25, 2020; Collection 2; Tier 1; Surface Reflectance values; Band 1.
+</span>
+
 
 # Question 2
 
 Describe the resolution, sampling frequency, and surface reflectance bands collected by Landsat 8. (5 pts)
 
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-see RS class
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+<span style="color: teal;">
+Landsat 8 has 11 spectral bands each covering different wavelengths and at varying spatial resolution as listed in the table below. The spatial resolution ranges from a low of 15m for the Panchromatic band (band 8) to a high of 100m for the Thermal Infrared bands (band 10 and band 11). The remaining bands have a spatial resolution of 30m. The temporal resolution of Landsat 8 imagery is 16 days.
+</span>
+
+```{r, include=FALSE, eval=TRUE}
+data.frame(
+  band = c(1,2,3,4,5,6,7,8,9,10,11)
+  , desc = c("Coastal aerosol","Blue","Green","Red","Near Infrared (NIR)"
+             ,"SWIR 1","SWIR 2","Panchromatic","Cirrus"
+             ,"Thermal Infrared (TIRS) 1","Thermal Infrared (TIRS) 2")
+  , wavelength = c("0.433–0.453","0.450–0.515","0.525–0.600","0.630–0.680","0.845–0.885","1.560–1.660","2.100–2.300","0.500–0.680","1.360–1.390","10.6-11.2","11.5-12.5")
+  , resolution = c("30 m","30 m","30 m","30 m","30 m","30 m","30 m","15 m","30 m","100 m","100 m")
+) |> 
+kableExtra::kable(
+  format = "html" 
+  , caption = "Landsat 8 Band Description"
+  , col.names = c(
+    "Band Number","Description","Wavelength (µm)","Resolution (m)"
+  )
+) %>% 
+kable_styling(font_size = 11)
+```
+
 
 # Question 3
 
 What is a World Reference System (WRS) row and WRS path? (4 pts)
 
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
+<span style="color: teal;">
+The Worldwide Reference System (WRS) is a positioning system for Landsat imagery. The WRS row is analogous to the latitudinal center line of an image. The WRS path numbers are ordered sequentially from east to west based on the track of the satellite as it orbits the Earth. The WRS path number and WRS row number are combined in the formate "path-row" to uniquely identify the scene center of a Landsat image (e.g. "034-032" relates to WRS path 034; WRS row 032).
+</span>
 
 # Question 4
 
@@ -398,5 +437,5 @@ gc()
 From the previous plot, which areas (think cover types) show the lowest NDVI values and which show the highest? (5 pts)
 
 <span style="color: teal;">
-asdf
+The areas that have the highest NDVI values (in this image values near +0.5) correspond to areas with healthy, green vegetation. The areas with low NDVI values (in this image values near -0.1) correspond to areas with little or no healthy vegetation. These low-NDVI areas include bodies of water such as Horsetooth Reservoir (40.56°, -105.16°).
 </span>
